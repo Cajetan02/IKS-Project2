@@ -1,71 +1,40 @@
+from flask import Flask, render_template, request, jsonify
+import csv
 
-from flask import Flask, render_template, jsonify
-from bs4 import BeautifulSoup
-import requests
-import sqlite3
+app = Flask(__name__, static_folder="static")
 
-app = Flask(__name__)
+CSV_FILE = 'products.csv'
 
-def init_db():
-    conn = sqlite3.connect('products.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS products
-                 (name TEXT, price TEXT, website TEXT, rating TEXT, authenticity TEXT, url TEXT, image_url TEXT)''')
-    conn.commit()
-    conn.close()
 
-def scrape_products():
-    urls = [
-        'https://www.runwayindia.in/',
-        'https://www.amazon.in/karigar',
-        'https://gaatha.com/',
-        'https://www.chanderiyaan.com/',
-        'https://www.exclusivelane.com/'
-    ]
-    products = []
-    for url in urls:
-        page = requests.get(url)
-        soup = BeautifulSoup(page.content, 'html.parser')
-        for product in soup.find_all('div', class_='product'):
-            name = product.find('h3').text
-            price = product.find('span', class_='price').text
-            website = url.split('/')[2]
-            rating = product.find('span', class_='rating').text
-            authenticity = "Verified"  # Add your logic to get authenticity rating
-            product_url = product.find('a')['href']
-            image_url = product.find('img')['src']
 
-            products.append((name, price, website, rating, authenticity, product_url, image_url))
-
-    conn = sqlite3.connect('products.db')
-    c = conn.cursor()
-    c.executemany('''INSERT INTO products (name, price, website, rating, authenticity, url, image_url) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?)''', products)
-    conn.commit()
-    conn.close()
+# Read products from CSV
+def read_products():
+    with open(CSV_FILE, mode='r', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        return list(reader)
 
 @app.route('/')
 def home():
-    conn = sqlite3.connect('products.db')
-    c = conn.cursor()
-    c.execute('SELECT * FROM products')
-    products = c.fetchall()
-    conn.close()
-    return render_template('index.html', products=products)
+    products = read_products()
+    sort_by = request.args.get('sort_by', 'name')  # Default to sorting by name
+    if sort_by == 'rating':
+        products = sorted(products, key=lambda x: float(x['rating']), reverse=True)
+    elif sort_by == 'price':
+        products = sorted(products, key=lambda x: int(x['sale_price'].strip('₹')))
+    return render_template('index.html', products=products, sort_by=sort_by)
+
+@app.route('/product/<name>')
+def product_detail(name):
+    products = read_products()
+    product = next((p for p in products if p['name'] == name), None)
+    if not product:
+        return "Product not found", 404
+    return render_template('product_detail.html', product=product)
 
 @app.route('/api/products')
 def api_products():
-    conn = sqlite3.connect('products.db')
-    c = conn.cursor()
-    c.execute('SELECT * FROM products')
-    products = c.fetchall()
-    conn.close()
-    
-    product_list = [{"name": p[0], "price": p[1], "website": p[2], "rating": p[3], "authenticity": p[4], "url": p[5], "image_url": p[6]} for p in products]
-    return jsonify(product_list)
+    products = read_products()
+    return jsonify(products)
 
 if __name__ == '__main__':
-    init_db()
-    scrape_products()
     app.run(debug=True)
-    
