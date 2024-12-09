@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import csv
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__,)
 
 CSV_FILE = 'products.csv'
 
@@ -17,11 +17,19 @@ def read_products():
 def home():
     products = read_products()
     sort_by = request.args.get('sort_by', 'name')  # Default to sorting by name
+
     if sort_by == 'rating':
         products = sorted(products, key=lambda x: float(x['rating']), reverse=True)
     elif sort_by == 'price':
-        products = sorted(products, key=lambda x: int(x['sale_price'].strip('₹')))
+        # Sort by effective price: sale_price if available, otherwise price
+        for product in products:
+            product['effective_price'] = int(
+                product['sale_price'].strip('₹') if product['sale_price'].strip('₹') else product['price'].strip('₹')
+            )
+        products = sorted(products, key=lambda x: x['effective_price'])
+
     return render_template('index.html', products=products, sort_by=sort_by)
+
 
 @app.route('/product/<name>')
 def product_detail(name):
