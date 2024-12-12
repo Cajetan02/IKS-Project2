@@ -71,9 +71,9 @@
                 <p><strong>Rating:</strong> {{ product['rating'] }}</p>
                 <p><strong>Authenticity:</strong> {{ product['authenticity'] }}</p>
                 <p><strong>Availability:</strong> {{ product['availability'] }}</p>
-                <h5>Description</h5>
+                <h5>Description:</h5>
                 <p>{{ product['description'] }}</p>
-                <h5>Features</h5>
+                <h5><strong>Features:</strong></h5>
                 <ul>
                     {% for feature in product['features'].split(', ') %}
                         <li>{{ feature }}</li>
