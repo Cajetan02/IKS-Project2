@@ -2,12 +2,8 @@ from flask import Flask, render_template, request, jsonify
 import csv
 
 app = Flask(__name__,)
-
 CSV_FILE = 'products.csv'
 
-
-
-# Read products from CSV
 def read_products():
     with open(CSV_FILE, mode='r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
@@ -16,12 +12,11 @@ def read_products():
 @app.route('/')
 def home():
     products = read_products()
-    sort_by = request.args.get('sort_by', 'name')  # Default to sorting by name
+    sort_by = request.args.get('sort_by', 'name') 
 
     if sort_by == 'rating':
         products = sorted(products, key=lambda x: float(x['rating']), reverse=True)
     elif sort_by == 'price':
-        # Sort by effective price: sale_price if available, otherwise price
         for product in products:
             product['effective_price'] = int(
                 product['sale_price'].strip('₹') if product['sale_price'].strip('₹') else product['price'].strip('₹')
